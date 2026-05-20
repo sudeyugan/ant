@@ -11,7 +11,7 @@ void EcsRegistry::DestroyEntity(Entity entity) {
 }
 
 std::size_t EcsRegistry::EntityCount() const {
-    return registry_.alive();
+    return registry_.storage<entt::entity>()->size();
 }
 
 entt::registry& EcsRegistry::Raw() {

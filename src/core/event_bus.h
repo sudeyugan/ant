@@ -1,9 +1,11 @@
 #pragma once
 
+#include <functional>
 #include <mutex>
+#include <typeindex>
+#include <unordered_set>
 #include <utility>
-
-#include <entt/entt.hpp>
+#include <vector>
 
 namespace ant::core {
 
@@ -13,20 +15,21 @@ public:
 
     template <typename Event, typename... Args>
     void Publish(Args&&... args) {
-        std::lock_guard<std::recursive_mutex> lock(mutex_);
-        dispatcher_.enqueue<Event>(std::forward<Args>(args)...);
+        auto& channel = GetChannel<Event>();
+        {
+            std::lock_guard<std::mutex> lock(channel.mutex);
+            Event event{std::forward<Args>(args)...};
+            channel.queue.push_back(std::move(event));
+        }
     }
 
     template <typename Event, typename Function>
     void Subscribe(Function&& function) {
-        std::lock_guard<std::recursive_mutex> lock(mutex_);
-        dispatcher_.sink<Event>().connect(std::forward<Function>(function));
-    }
-
-    template <typename Event, auto Candidate, typename Type>
-    void Subscribe(Type& instance) {
-        std::lock_guard<std::recursive_mutex> lock(mutex_);
-        dispatcher_.sink<Event>().template connect<Candidate>(instance);
+        auto& channel = GetChannel<Event>();
+        {
+            std::lock_guard<std::mutex> lock(channel.mutex);
+            channel.subscribers.emplace_back(std::forward<Function>(function));
+        }
     }
 
     void Update();
@@ -34,8 +37,55 @@ public:
 private:
     EventBus() = default;
 
-    std::recursive_mutex mutex_{};
-    entt::dispatcher dispatcher_{};
+    template <typename Event>
+    struct Channel {
+        std::mutex mutex{};
+        std::vector<Event> queue{};
+        std::vector<std::function<void(const Event&)>> subscribers{};
+    };
+
+    template <typename Event>
+    Channel<Event>& GetChannel() {
+        Register<Event>();
+        static Channel<Event> channel;
+        return channel;
+    }
+
+    template <typename Event>
+    static Channel<Event>& GetChannelNoRegister() {
+        static Channel<Event> channel;
+        return channel;
+    }
+
+    template <typename Event>
+    void Register() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const std::type_index id(typeid(Event));
+        if (registered_.insert(id).second) {
+            drainers_.push_back(&EventBus::Drain<Event>);
+        }
+    }
+
+    template <typename Event>
+    static void Drain() {
+        auto& channel = GetChannelNoRegister<Event>();
+        std::vector<Event> events;
+        std::vector<std::function<void(const Event&)>> subscribers;
+        {
+            std::lock_guard<std::mutex> lock(channel.mutex);
+            events.swap(channel.queue);
+            subscribers = channel.subscribers;
+        }
+        for (const auto& event : events) {
+            for (const auto& subscriber : subscribers) {
+                subscriber(event);
+            }
+        }
+    }
+
+    std::mutex mutex_{};
+    std::unordered_set<std::type_index> registered_{};
+    std::vector<void (*)()> drainers_{};
 };
 
 } // namespace ant::core

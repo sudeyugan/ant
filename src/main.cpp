@@ -3,6 +3,8 @@
 #include <entt/entt.hpp>
 #include <vector>
 
+#include <GLFW/glfw3.h>
+
 #include "ai_bridge/async_task_queue.h"
 #include "ai_bridge/llm_client.h"
 #include "components/agent.h"
@@ -21,6 +23,20 @@
 #include "view/renderer_2d.h"
 
 int main() {
+    if (!glfwInit()) {
+        return 1;
+    }
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
+    GLFWwindow* window = glfwCreateWindow(1280, 720, "Society Simulator", nullptr, nullptr);
+    if (!window) {
+        glfwTerminate();
+        return 1;
+    }
+    glfwMakeContextCurrent(window);
+    glfwSwapInterval(1);
+
     ant::core::EcsRegistry registry;
     ant::core::MemoryPool transient_pool(1 << 20);
     ant::core::Timer timer(1.0 / 60.0);
@@ -38,19 +54,26 @@ int main() {
 
     ant::view::Renderer2D renderer;
     ant::view::DebugGui debug_gui;
+    debug_gui.Initialize(window);
 
     constexpr std::uint32_t entity_count = 256;
     std::vector<ant::core::Entity> entities;
     entities.reserve(entity_count);
     ant::core::Entity first_entity = entt::null;
+    constexpr float spacing = 16.0f;
+    constexpr std::uint32_t columns = 64;
+    constexpr float origin_x = 32.0f;
+    constexpr float origin_y = 32.0f;
     for (std::uint32_t i = 0; i < entity_count; ++i) {
         auto entity = registry.CreateEntity();
         entities.push_back(entity);
         if (i == 0) {
             first_entity = entity;
         }
-        registry.AddComponent<ant::components::Position>(entity, ant::components::Position{static_cast<float>(i), 0.0f});
-        registry.AddComponent<ant::components::Velocity>(entity, ant::components::Velocity{0.5f, 0.0f});
+        const float x = origin_x + static_cast<float>(i % columns) * spacing;
+        const float y = origin_y + static_cast<float>(i / columns) * spacing;
+        registry.AddComponent<ant::components::Position>(entity, ant::components::Position{x, y});
+        registry.AddComponent<ant::components::Velocity>(entity, ant::components::Velocity{0.5f, 0.2f});
         registry.AddComponent<ant::components::Health>(entity, ant::components::Health{100.0f, 100.0f});
         registry.AddComponent<ant::components::Hunger>(entity, ant::components::Hunger{100.0f, 0.2f});
         registry.AddComponent<ant::components::Faction>(entity, ant::components::Faction{i % 4});
@@ -67,7 +90,8 @@ int main() {
         llm.RequestDecision(registry, first_entity);
     }
 
-    for (int frame = 0; frame < 600; ++frame) {
+    while (!glfwWindowShouldClose(window)) {
+        glfwPollEvents();
         timer.Tick();
         while (timer.ShouldStep()) {
             const float dt = static_cast<float>(timer.FixedStepSeconds());
@@ -79,13 +103,23 @@ int main() {
             timer.ConsumeStep();
         }
 
-        renderer.BeginFrame();
+        int framebuffer_width = 0;
+        int framebuffer_height = 0;
+        glfwGetFramebufferSize(window, &framebuffer_width, &framebuffer_height);
+
+        renderer.BeginFrame(framebuffer_width, framebuffer_height);
         renderer.DrawEntities(registry);
+        debug_gui.BeginFrame();
         debug_gui.Draw(registry);
+        debug_gui.EndFrame();
         renderer.EndFrame();
+        glfwSwapBuffers(window);
     }
 
+    debug_gui.Shutdown();
     task_queue.Stop();
     transient_pool.Reset();
+    glfwDestroyWindow(window);
+    glfwTerminate();
     return 0;
 }

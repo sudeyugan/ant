@@ -8,8 +8,16 @@ EventBus& EventBus::Get() {
 }
 
 void EventBus::Update() {
-    std::lock_guard<std::recursive_mutex> lock(mutex_);
-    dispatcher_.update();
+    std::vector<void (*)()> drainers;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        drainers = drainers_;
+    }
+    for (auto drain : drainers) {
+        if (drain) {
+            drain();
+        }
+    }
 }
 
 } // namespace ant::core

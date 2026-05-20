@@ -8,6 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # 告诉 CMake 寻找我们需要的包
 find_package(entt CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -20,5 +21,10 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 target_link_libraries(${PROJECT_NAME} PRIVATE 
     EnTT::EnTT 
     imgui::imgui 
+    glfw
     nlohmann_json::nlohmann_json
 )
+
+if (WIN32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE opengl32)
+endif()

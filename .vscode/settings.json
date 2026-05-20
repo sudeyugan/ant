@@ -1,0 +1,5 @@
+{
+    "cmake.configureArgs": [
+        "-DCMAKE_TOOLCHAIN_FILE=E:/AIDatingSim/vcpkg/scripts/buildsystems/vcpkg.cmake"
+    ]
+}
