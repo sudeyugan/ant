@@ -1,0 +1,15 @@
+{
+  "map_width": 128,
+  "map_height": 72,
+  "max_sugar": 10.0,
+  "growback_rate": 0.05,
+  "growback_interval": 1,
+  "vision": 6,
+  "metabolism_rate": 0.2,
+  "auto_step": true,
+  "summary_interval": 365,
+  "llm_decision_cooldown": 5.0,
+  "deepseek_base_url": "https://api.deepseek.com",
+  "deepseek_api_key": "sk-d14ef5c7b2454c38928f404b6093ef86",
+  "deepseek_model": "deepseek-v4-pro"
+}

@@ -11,6 +11,12 @@
         "glfw-binding",
         "opengl3-binding"
       ]
+    },
+    {
+      "name": "cpp-httplib",
+      "features": [
+        "openssl"
+      ]
     }
   ]
 }

@@ -49,4 +49,8 @@ void Timer::ConsumeStep() {
     accumulator_seconds_ -= fixed_step_seconds_;
 }
 
+void Timer::ForceStep() {
+    accumulator_seconds_ += fixed_step_seconds_;
+}
+
 } // namespace ant::core

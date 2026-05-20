@@ -17,6 +17,7 @@ public:
 
     bool ShouldStep() const;
     void ConsumeStep();
+    void ForceStep();
 
 private:
     using clock = std::chrono::high_resolution_clock;
